@@ -1,6 +1,5 @@
 from django.http import Http404
-from django.shortcuts import (get_list_or_404, render,
-                              get_object_or_404, redirect)
+from django.shortcuts import (render, get_object_or_404, redirect)
 from django.urls import reverse_lazy
 from .models import Comments, Post, Category
 from .forms import PostForm, CommentForm
@@ -19,6 +18,25 @@ USER = get_user_model()
 POSTS = Post.objects.select_related('category', 'author', 'location')
 
 
+class SUrlProfileMixin:
+    """Успешная переадресация на профиль"""
+
+    def get_success_url(self):
+        return reverse_lazy(
+            'blog:profile', kwargs={'username': self.request.user})
+
+
+class SUrlDetailMixin:
+    """Успешная переадресация на публикацию"""
+
+    model = Comments
+    template_name = 'blog/comment.html'
+
+    def get_success_url(self):
+        return reverse_lazy(
+            'blog:post_detail', kwargs={'pk': self.object.post.pk})
+
+
 class IndexListView(ListView):
     """Главная страница со списком публикаций"""
 
@@ -33,7 +51,7 @@ class IndexListView(ListView):
     paginate_by = COUNT_POSTS
 
 
-class PostCreateView(LoginRequiredMixin, CreateView):
+class PostCreateView(SUrlProfileMixin, LoginRequiredMixin, CreateView):
     """Создание публикации"""
 
     model = Post
@@ -43,10 +61,6 @@ class PostCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         form.instance.author = self.request.user
         return super().form_valid(form)
-
-    def get_success_url(self):
-        return reverse_lazy(
-            'blog:profile', kwargs={'username': self.request.user})
 
 
 class PostDetailView(DetailView):
@@ -73,7 +87,7 @@ class PostDetailView(DetailView):
         return context
 
 
-class PostUpdateView(LoginRequiredMixin, UpdateView):
+class PostUpdateView(SUrlProfileMixin, LoginRequiredMixin, UpdateView):
     """Изменение публикации"""
 
     model = Post
@@ -94,7 +108,7 @@ class PostUpdateView(LoginRequiredMixin, UpdateView):
             'blog:post_detail', kwargs={"pk": self.object.pk})
 
 
-class PostDeleteView(LoginRequiredMixin, DeleteView):
+class PostDeleteView(SUrlProfileMixin, LoginRequiredMixin, DeleteView):
     """Удаление публикации"""
 
     model = Post
@@ -110,40 +124,19 @@ class PostDeleteView(LoginRequiredMixin, DeleteView):
             return super().dispatch(request, *args, **kwargs)
         return redirect('blog:post_detail', pk=kwargs['pk'])
 
-    def get_success_url(self):
-        return reverse_lazy(
-            'blog:profile', kwargs={'username': self.request.user})
-
-
-def category_posts(request, category_id):
-    """Отображение всех публикации отдельной категории"""
-    category = get_object_or_404(Category, slug=category_id)
-    post_list = get_list_or_404(POSTS.filter(
-        category__slug=category_id,
-        is_published=True,
-        category__is_published=True,
-        location__is_published=True,
-        pub_date__lte=timezone.now()).order_by('-pub_date',))
-    paginator = Paginator(post_list, COUNT_POSTS)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    context = {'category': category, 'page_obj': page_obj}
-    return render(request, 'blog/category.html', context)
-
 
 class CategoryListView(ListView):
+    """Отображение всех публикации отдельной категории"""
+
     model = Post
     template_name = 'blog/category.html'
     paginate_by = COUNT_POSTS
 
     def get_queryset(self):
-        try:
-            Category.objects.get(
-                slug=self.kwargs['category_slug'],
-                is_published=True
-            )
-        except Category.DoesNotExist:
-            raise Http404('Category is not published')
+        self.category = get_object_or_404(
+            Category.objects.filter(is_published=True),
+            slug=self.kwargs['category_slug'])
+
         queryset = POSTS.filter(
             category__slug=self.kwargs['category_slug'],
             category__is_published=True,
@@ -154,8 +147,7 @@ class CategoryListView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        category_slug = self.kwargs.get('category_slug')
-        category = Category.objects.get(slug=category_slug)
+        category = self.category
         context['category'] = category.title
         return context
 
@@ -202,11 +194,9 @@ def add_comment(request, pk):
     return redirect('blog:post_detail', pk=pk)
 
 
-class CommentUpdateView(LoginRequiredMixin, UpdateView):
+class CommentUpdateView(SUrlDetailMixin, LoginRequiredMixin, UpdateView):
     """Редактирование коментариев"""
 
-    model = Comments
-    template_name = 'blog/comment.html'
     form_class = CommentForm
 
     def dispatch(self, request, *args, **kwargs):
@@ -222,16 +212,9 @@ class CommentUpdateView(LoginRequiredMixin, UpdateView):
         context["comment"] = self.comment
         return context
 
-    def get_success_url(self):
-        return reverse_lazy(
-            'blog:post_detail', kwargs={'pk': self.object.post.pk})
 
-
-class CommentDeleteView(LoginRequiredMixin, DeleteView):
+class CommentDeleteView(SUrlDetailMixin, LoginRequiredMixin, DeleteView):
     """Удаление коментариев"""
-
-    model = Comments
-    template_name = 'blog/comment.html'
 
     def dispatch(self, request, *args, **kwargs):
         self.comment = get_object_or_404(
@@ -245,7 +228,3 @@ class CommentDeleteView(LoginRequiredMixin, DeleteView):
         context = super().get_context_data(**kwargs)
         context["comment"] = self.comment
         return context
-
-    def get_success_url(self):
-        return reverse_lazy(
-            'blog:post_detail', kwargs={'pk': self.object.post.pk})
