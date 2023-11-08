@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from core.models import PublishedModel
 
+
 USER = get_user_model()
 
 
@@ -68,7 +69,8 @@ class Comments(models.Model):
         related_name='comment',
     )
     created_at = models.DateTimeField(auto_now_add=True)
-    author = models.ForeignKey(USER, on_delete=models.CASCADE)
+    author = models.ForeignKey(USER, on_delete=models.CASCADE,
+                               related_name='comment')
 
     class Meta:
         ordering = ('created_at',)

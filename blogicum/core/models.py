@@ -13,3 +13,6 @@ class PublishedModel(models.Model):
 
     class Meta:
         abstract = True
+        indexes = [
+            models.Index(fields=['is_published']),
+        ]

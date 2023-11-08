@@ -15,7 +15,12 @@ from django.utils import timezone
 
 COUNT_POSTS = 10
 USER = get_user_model()
-POSTS = Post.objects.select_related('category', 'author', 'location')
+
+
+def get_posts(**kwargs):
+    return Post.objects.select_related(
+        'category', 'author', 'location'
+    ).filter(**kwargs)
 
 
 class SUrlProfileMixin:
@@ -42,12 +47,11 @@ class IndexListView(ListView):
 
     model = Post
     template_name = 'blog/index.html'
-    queryset = POSTS.filter(
-        is_published=True,
-        category__is_published=True,
-        location__is_published=True,
-        pub_date__lte=timezone.now()).order_by('-pub_date')
-    ordering = '-pub_date'
+    queryset = get_posts(is_published=True,
+                         category__is_published=True,
+                         location__is_published=True,
+                         pub_date__lte=timezone.now()
+                         ).order_by('-pub_date')
     paginate_by = COUNT_POSTS
 
 
@@ -72,8 +76,8 @@ class PostDetailView(DetailView):
     paginate_by = COUNT_POSTS
 
     def get_context_data(self, **kwargs):
-        post = get_object_or_404(POSTS.filter(location__is_published=True,
-                                              ), pk=self.object.id)
+        post = get_object_or_404(get_posts(location__is_published=True,
+                                           ), pk=self.object.id)
         if post.author != self.request.user:
             if not (post.is_published
                     and post.category.is_published
@@ -81,7 +85,7 @@ class PostDetailView(DetailView):
                 raise Http404
         context = super().get_context_data(**kwargs)
         context['form'] = CommentForm()
-        context['comment'] = (
+        context['comments'] = (
             self.object.comment.select_related('author')
         )
         return context
@@ -137,7 +141,7 @@ class CategoryListView(ListView):
             Category.objects.filter(is_published=True),
             slug=self.kwargs['category_slug'])
 
-        queryset = POSTS.filter(
+        queryset = get_posts(
             category__slug=self.kwargs['category_slug'],
             category__is_published=True,
             is_published=True,
@@ -156,14 +160,14 @@ def profile(request, username):
     """Страница профиля"""
     profile = get_object_or_404(USER, username=username)
     if profile != request.user:
-        page_obj = POSTS.filter(
+        page_obj = get_posts(
             author=profile,
             is_published=True,
             category__is_published=True,
             location__is_published=True,
             pub_date__lte=timezone.now()).order_by('-pub_date')
     else:
-        page_obj = POSTS.filter(
+        page_obj = get_posts(
             author=profile).order_by('-pub_date')
     paginator = Paginator(page_obj, COUNT_POSTS)
     page_number = request.GET.get('page')

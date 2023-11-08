@@ -1,8 +1,15 @@
 from django import forms
 from .models import Post, Comments
+from datetime import datetime as dt
+
+
+DATE_FORMAT = "{:%Y-%m-%d %H:%M}".format(dt.now())
 
 
 class PostForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['pub_date'].initial = DATE_FORMAT
 
     class Meta:
         model = Post

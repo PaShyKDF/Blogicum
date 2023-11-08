@@ -25,6 +25,7 @@
             категории {% include "includes/category_link.html" %}
           </small>
         </h6>
+        {{ lint }}
         <p class="card-text">{{ post.text|linebreaksbr }}</p>
         <p>{{ is_published }}</p>
         {% if user == post.author %}
