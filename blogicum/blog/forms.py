@@ -3,13 +3,13 @@ from .models import Post, Comments
 from datetime import datetime as dt
 
 
-DATE_FORMAT = "{:%Y-%m-%d %H:%M}".format(dt.now())
+DATE_FORMAT = '{:%Y-%m-%d %H:%M}'
 
 
 class PostForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['pub_date'].initial = DATE_FORMAT
+        self.fields['pub_date'].initial = DATE_FORMAT.format(dt.now())
 
     class Meta:
         model = Post

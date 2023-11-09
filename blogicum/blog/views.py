@@ -213,7 +213,7 @@ class CommentUpdateView(SUrlDetailMixin, LoginRequiredMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["comment"] = self.comment
+        context['comment'] = self.comment
         return context
 
 
@@ -230,5 +230,5 @@ class CommentDeleteView(SUrlDetailMixin, LoginRequiredMixin, DeleteView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["comment"] = self.comment
+        context['comment'] = self.comment
         return context
