@@ -20,7 +20,7 @@ USER = get_user_model()
 def get_posts(**kwargs):
     return Post.objects.select_related(
         'category', 'author', 'location'
-    ).filter(**kwargs)
+    ).prefetch_related('comment').order_by('-pub_date')
 
 
 class SUrlProfileMixin:
@@ -47,11 +47,13 @@ class IndexListView(ListView):
 
     model = Post
     template_name = 'blog/index.html'
-    queryset = get_posts(is_published=True,
-                         category__is_published=True,
-                         location__is_published=True,
-                         pub_date__lte=timezone.now()
-                         ).order_by('-pub_date')
+    queryset = Post.objects.select_related(
+        'category', 'author', 'location'
+    ).filter(is_published=True,
+             category__is_published=True,
+             location__is_published=True,
+             pub_date__lte=timezone.now()
+             ).prefetch_related('comment').order_by('-pub_date')
     paginate_by = COUNT_POSTS
 
 
@@ -116,12 +118,10 @@ class PostDeleteView(SUrlProfileMixin, LoginRequiredMixin, DeleteView):
     """Удаление публикации"""
 
     model = Post
-    queryset = Post.objects.select_related(
-        'category', 'author')
 
     def dispatch(self, request, *args, **kwargs):
         post = get_object_or_404(
-            Post,
+            Post.objects.select_related('author'),
             pk=kwargs['pk']
         )
         if request.user == post.author:
